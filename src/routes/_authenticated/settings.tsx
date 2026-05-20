@@ -1,73 +1,97 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { Building2, Sliders, Users, Database, Shield, Save, Image as ImageIcon } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Building2, Save, CheckCircle, Loader2 } from "lucide-react";
 import { Card, PageHeader, Button } from "@/components/common";
+import { settingsService } from "@/services/settingsService";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   component: SettingsPage,
 });
 
-const sections = [
-  { id: "company", label: "Informations de l'entreprise", icon: Building2 },
-  { id: "prefs", label: "Préférences", icon: Sliders },
-  { id: "users", label: "Utilisateurs", icon: Users },
-  { id: "backup", label: "Sauvegarde", icon: Database },
-  { id: "security", label: "Sécurité", icon: Shield },
-];
+interface SettingsForm {
+  companyName: string;
+  phone: string;
+  email: string;
+  address: string;
+  ninea: string;
+  rccm: string;
+  invoiceFooter: string;
+}
 
 function SettingsPage() {
-  const [active, setActive] = useState("company");
+  const qc = useQueryClient();
+  const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [form, setForm] = useState<SettingsForm>({
+    companyName: "", phone: "", email: "", address: "", ninea: "", rccm: "", invoiceFooter: "",
+  });
+
+  const { data, isLoading } = useQuery({ queryKey: ["settings"], queryFn: () => settingsService.get() });
+
+  useEffect(() => {
+    if (data?.data?.data) {
+      const s = data.data.data;
+      setForm({ companyName: s.companyName || "", phone: s.phone || "", email: s.email || "", address: s.address || "", ninea: s.ninea || "", rccm: s.rccm || "", invoiceFooter: s.invoiceFooter || "" });
+    }
+  }, [data]);
+
+  const updateMutation = useMutation({
+    mutationFn: () => settingsService.update(form),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["settings"] });
+      setSaved(true);
+      setSaveError("");
+      setTimeout(() => setSaved(false), 3000);
+    },
+    onError: (err: unknown) => setSaveError((err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Erreur"),
+  });
+
   const inputCls = "w-full px-3 py-2 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring/40";
 
   return (
     <div className="space-y-6">
       <PageHeader title="Paramètres" subtitle="Configurez votre application" />
-      <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-4">
-        <Card className="p-2 h-fit">
-          <nav className="space-y-1">
-            {sections.map(s => {
-              const Icon = s.icon;
-              return (
-                <button key={s.id} onClick={() => setActive(s.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-left transition ${active === s.id ? "bg-accent/10 text-accent" : "text-muted-foreground hover:bg-muted"}`}>
-                  <Icon className="w-4 h-4" />{s.label}
-                </button>
-              );
-            })}
-          </nav>
-        </Card>
 
-        <Card className="p-6">
-          {active === "company" && (
-            <>
-              <h3 className="font-semibold mb-1">Informations de l'entreprise</h3>
-              <p className="text-sm text-muted-foreground mb-6">Ces informations apparaîtront sur vos factures.</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Nom de l'entreprise"><input className={inputCls} defaultValue="StockFact Pro SARL" /></Field>
-                <div className="sm:col-span-1">
-                  <span className="text-xs font-medium mb-1.5 block">Logo</span>
-                  <div className="flex items-center gap-3">
-                    <div className="w-14 h-14 rounded-lg bg-muted flex items-center justify-center"><ImageIcon className="w-5 h-5 text-muted-foreground" /></div>
-                    <Button variant="outline" size="sm">Changer</Button>
-                  </div>
-                </div>
-                <Field label="Téléphone"><input className={inputCls} defaultValue="77 123 45 67" /></Field>
-                <Field label="Email"><input className={inputCls} defaultValue="contact@stockfact.sn" /></Field>
-                <div className="sm:col-span-2"><Field label="Adresse"><input className={inputCls} defaultValue="Dakar, Sénégal" /></Field></div>
-                <Field label="NINEA"><input className={inputCls} defaultValue="123456789" /></Field>
-                <Field label="RCCM"><input className={inputCls} defaultValue="SN-DKR-2020-B-12345" /></Field>
-                <div className="sm:col-span-2"><Field label="Texte bas de facture"><textarea rows={3} className={inputCls} defaultValue="Merci pour votre confiance ! Le meilleur partenaire de votre réussite." /></Field></div>
+      <Card className="p-6">
+        <div className="flex items-center gap-2 mb-1">
+          <Building2 className="w-5 h-5 text-accent" />
+          <h3 className="font-semibold">Informations de l'entreprise</h3>
+        </div>
+        <p className="text-sm text-muted-foreground mb-6">Ces informations apparaîtront sur vos factures.</p>
+
+        {isLoading ? (
+          <div className="flex items-center justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div>
+        ) : (
+          <>
+            {saveError && <p className="text-sm text-destructive mb-3">{saveError}</p>}
+            {saved && (
+              <div className="flex items-center gap-2 text-success text-sm mb-3">
+                <CheckCircle className="w-4 h-4" /> Paramètres enregistrés avec succès
               </div>
-              <div className="flex justify-end mt-6"><Button><Save className="w-4 h-4" />Enregistrer les modifications</Button></div>
-            </>
-          )}
-          {active !== "company" && (
-            <div className="text-center py-12 text-muted-foreground">
-              <p className="text-sm">Section "{sections.find(s => s.id === active)?.label}" — bientôt disponible.</p>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Nom de l'entreprise"><input className={inputCls} value={form.companyName} onChange={e => setForm({ ...form, companyName: e.target.value })} /></Field>
+              <Field label="Téléphone"><input className={inputCls} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></Field>
+              <Field label="Email"><input type="email" className={inputCls} value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></Field>
+              <Field label="NINEA"><input className={inputCls} value={form.ninea} onChange={e => setForm({ ...form, ninea: e.target.value })} /></Field>
+              <div className="sm:col-span-2"><Field label="Adresse"><input className={inputCls} value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} /></Field></div>
+              <Field label="RCCM"><input className={inputCls} value={form.rccm} onChange={e => setForm({ ...form, rccm: e.target.value })} /></Field>
+              <div className="sm:col-span-2">
+                <Field label="Texte bas de facture">
+                  <textarea rows={3} className={inputCls} value={form.invoiceFooter} onChange={e => setForm({ ...form, invoiceFooter: e.target.value })} />
+                </Field>
+              </div>
             </div>
-          )}
-        </Card>
-      </div>
+            <div className="flex justify-end mt-6">
+              <Button onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending}>
+                {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {updateMutation.isPending ? "Enregistrement..." : "Enregistrer les modifications"}
+              </Button>
+            </div>
+          </>
+        )}
+      </Card>
     </div>
   );
 }

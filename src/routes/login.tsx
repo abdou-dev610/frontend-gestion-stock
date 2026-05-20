@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { Package, Eye, EyeOff, Mail, Lock } from "lucide-react";
+import { authService } from "@/services/authService";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -9,17 +10,24 @@ export const Route = createFileRoute("/login")({
 function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("admin@stockfact.sn");
-  const [password, setPassword] = useState("admin123");
+  const [password, setPassword] = useState("Admin123456");
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setError("");
     setLoading(true);
-    setTimeout(() => {
-      localStorage.setItem("stockfact_auth", JSON.stringify({ email, name: "Admin" }));
+    try {
+      await authService.login(email, password);
       navigate({ to: "/dashboard" });
-    }, 500);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Identifiants incorrects";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -33,6 +41,12 @@ function LoginPage() {
             <h1 className="text-2xl font-bold text-foreground">StockFact <span className="text-accent">Pro</span></h1>
             <p className="text-sm text-muted-foreground mt-1 text-center">Gérez vos factures, stocks et clients facilement</p>
           </div>
+
+          {error && (
+            <div className="mb-4 px-4 py-3 rounded-lg bg-destructive-soft border border-destructive/20 text-destructive text-sm">
+              {error}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
@@ -61,17 +75,15 @@ function LoginPage() {
               </div>
             </div>
 
-            <a href="#" className="text-sm text-accent hover:underline block">Mot de passe oublié ?</a>
-
             <button type="submit" disabled={loading}
               className="w-full bg-accent text-accent-foreground py-2.5 rounded-lg font-medium hover:opacity-90 transition disabled:opacity-60">
-              {loading ? "Connexion..." : "Se connecter"}
+              {loading ? "Connexion en cours..." : "Se connecter"}
             </button>
-
-            <p className="text-center text-sm text-muted-foreground">
-              Pas encore de compte ? <Link to="/login" className="text-accent hover:underline">Créer un compte</Link>
-            </p>
           </form>
+
+          <div className="mt-6 p-3 rounded-lg bg-muted/50 text-xs text-muted-foreground">
+            <strong>Démo :</strong> admin@stockfact.sn / Admin123456
+          </div>
         </div>
         <p className="text-center text-xs text-muted-foreground mt-6">© 2026 StockFact Pro — ERP de facturation et gestion de stock</p>
       </div>
