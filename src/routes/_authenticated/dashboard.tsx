@@ -66,7 +66,7 @@ function DashboardPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.92 0.01 250)" vertical={false} />
                 <XAxis dataKey="month" tick={{ fontSize: 12, fill: "oklch(0.52 0.03 250)" }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 12, fill: "oklch(0.52 0.03 250)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v / 1000000}M`} />
-                <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ borderRadius: 10, border: "1px solid oklch(0.92 0.01 250)" }} />
+                <Tooltip formatter={(v) => formatCurrency(Number(v))} contentStyle={{ borderRadius: 10, border: "1px solid oklch(0.92 0.01 250)" }} />
                 <Area type="monotone" dataKey="value" stroke="oklch(0.62 0.18 255)" strokeWidth={2.5} fill="url(#grad)" />
               </AreaChart>
             </ResponsiveContainer>
