@@ -23,10 +23,18 @@ if (process.env.NODE_ENV === "production" && !process.env.ALLOWED_ORIGINS) {
 }
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || "http://localhost:5173").split(",").map(o => o.trim());
 
+const isOriginAllowed = (origin) => {
+  if (!origin) return true;
+  if (allowedOrigins.includes(origin)) return true;
+  // Accepte tous les sous-domaines Vercel (preview + production)
+  if (/^https:\/\/[a-zA-Z0-9-]+(\.vercel\.app)$/.test(origin)) return true;
+  return false;
+};
+
 app.use(helmet());
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    if (isOriginAllowed(origin)) return callback(null, true);
     callback(new Error("CORS non autorisé"));
   },
   credentials: true,
