@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Minus, History, Loader2, ArrowUpCircle, ArrowDownCircle, RefreshCw } from "lucide-react";
 import { Card, Badge, PageHeader, Button, Modal } from "@/components/common";
 import { stockService } from "@/services/stockService";
+import { getApiError } from "@/lib/apiError";
 import { formatCurrency, formatDate } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/stock")({
@@ -48,10 +49,12 @@ function StockPage() {
   const [movError, setMovError] = useState("");
 
   const { data: stockData, isLoading } = useQuery({ queryKey: ["stock"], queryFn: () => stockService.list() });
-  const { data: movData } = useQuery({ queryKey: ["stock-movements"], queryFn: () => stockService.movements(), enabled: showHistory });
+  const [movPage, setMovPage] = useState(1);
+  const { data: movData } = useQuery({ queryKey: ["stock-movements", movPage], queryFn: () => stockService.movements({ page: movPage, limit: 50 }), enabled: showHistory });
 
   const products: Product[] = stockData?.data?.data || [];
   const movements: Movement[] = movData?.data?.data || [];
+  const movPagination = movData?.data?.pagination;
 
   const stockValue = products.reduce((s, p) => s + p.purchasePrice * p.quantity, 0);
   const totalUnits = products.reduce((s, p) => s + p.quantity, 0);
@@ -65,7 +68,7 @@ function StockPage() {
       setMovementModal(null);
       setProductId(""); setQuantity(""); setReason(""); setMovError("");
     },
-    onError: (err: unknown) => setMovError((err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Erreur"),
+    onError: (err: unknown) => setMovError(getApiError(err)),
   });
 
   const inputCls = "w-full px-3 py-2 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring/40";
@@ -76,7 +79,7 @@ function StockPage() {
         actions={<>
           <Button onClick={() => { setMovementModal({ type: "in" }); setMovError(""); }}><Plus className="w-4 h-4" />Entrée stock</Button>
           <Button variant="outline" onClick={() => { setMovementModal({ type: "out" }); setMovError(""); }}><Minus className="w-4 h-4" />Sortie stock</Button>
-          <Button variant="ghost" onClick={() => setShowHistory(!showHistory)}><History className="w-4 h-4" />Mouvements</Button>
+          <Button variant="ghost" onClick={() => { setShowHistory(!showHistory); setMovPage(1); }}><History className="w-4 h-4" />Mouvements</Button>
         </>} />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -146,6 +149,16 @@ function StockPage() {
               );
             })}
           </div>
+          {movPagination && movPagination.total > 50 && (
+            <div className="flex items-center justify-between text-sm text-muted-foreground p-4 border-t border-border">
+              <span>{movPagination.total} mouvement{movPagination.total > 1 ? "s" : ""}</span>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setMovPage(p => p - 1)} disabled={movPage <= 1}>← Précédent</Button>
+                <span className="text-xs">Page {movPage} / {Math.ceil(movPagination.total / 50)}</span>
+                <Button variant="outline" size="sm" onClick={() => setMovPage(p => p + 1)} disabled={movPage >= Math.ceil(movPagination.total / 50)}>Suivant →</Button>
+              </div>
+            </div>
+          )}
         </Card>
       )}
 

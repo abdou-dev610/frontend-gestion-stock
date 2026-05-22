@@ -27,12 +27,13 @@ const invoiceSchema = new mongoose.Schema({
     enum: ["cash", "wave", "orange_money", "bank_transfer", "other"],
     default: "cash",
   },
-  notes: { type: String, default: "" },
+  notes: { type: String, default: "", maxlength: 1000 },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
 }, { timestamps: true });
 
 invoiceSchema.pre("save", function (next) {
   this.subtotal = this.items.reduce((s, i) => s + i.total, 0);
+  if (this.discount > this.subtotal) this.discount = this.subtotal;
   this.totalAmount = this.subtotal - this.discount;
   this.remainingAmount = this.totalAmount - this.amountPaid;
   if (this.remainingAmount <= 0) this.paymentStatus = "paid";
@@ -40,5 +41,9 @@ invoiceSchema.pre("save", function (next) {
   else this.paymentStatus = "unpaid";
   next();
 });
+
+invoiceSchema.index({ paymentStatus: 1 });
+invoiceSchema.index({ customer: 1 });
+invoiceSchema.index({ createdAt: -1 });
 
 export default mongoose.model("Invoice", invoiceSchema);

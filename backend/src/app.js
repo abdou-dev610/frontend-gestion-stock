@@ -18,6 +18,9 @@ dotenv.config();
 
 const app = express();
 
+if (process.env.NODE_ENV === "production" && !process.env.ALLOWED_ORIGINS) {
+  console.warn("⚠️  ALLOWED_ORIGINS non défini — CORS limité à http://localhost:5173 en production !");
+}
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || "http://localhost:5173").split(",").map(o => o.trim());
 
 app.use(helmet());

@@ -1,10 +1,10 @@
 import mongoose from "mongoose";
 
 const productSchema = new mongoose.Schema({
-  name: { type: String, required: true, trim: true },
+  name: { type: String, required: true, trim: true, maxlength: 200 },
   reference: { type: String, required: true, unique: true, uppercase: true, trim: true },
-  category: { type: String, required: true, trim: true },
-  description: { type: String, default: "" },
+  category: { type: String, required: true, trim: true, maxlength: 100 },
+  description: { type: String, default: "", maxlength: 2000 },
   purchasePrice: { type: Number, required: true, min: 0 },
   salePrice: { type: Number, required: true, min: 0 },
   quantity: { type: Number, required: true, min: 0, default: 0 },
@@ -21,5 +21,8 @@ productSchema.virtual("stockStatus").get(function () {
 
 productSchema.set("toJSON", { virtuals: true });
 productSchema.set("toObject", { virtuals: true });
+
+productSchema.index({ status: 1 });
+productSchema.index({ category: 1 });
 
 export default mongoose.model("Product", productSchema);

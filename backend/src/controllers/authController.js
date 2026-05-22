@@ -44,5 +44,6 @@ export const registerAdmin = asyncHandler(async (req, res) => {
 });
 
 export const logout = asyncHandler(async (req, res) => {
+  await req.user.updateOne({ lastLogout: new Date() });
   res.json({ success: true, message: "Déconnexion réussie" });
 });

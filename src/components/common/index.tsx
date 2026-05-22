@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import React, { ReactNode } from "react";
 
 export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: string; actions?: ReactNode }) {
   return (
@@ -68,6 +68,10 @@ export function EmptyState({ title, description, action }: { title: string; desc
       {action && <div className="mt-4">{action}</div>}
     </div>
   );
+}
+
+export function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return <label className="block"><span className="text-xs font-medium text-foreground mb-1.5 block">{label}</span>{children}</label>;
 }
 
 export function Modal({ open, onClose, title, children, footer, size = "md" }: { open: boolean; onClose: () => void; title: string; children: ReactNode; footer?: ReactNode; size?: "md" | "lg" }) {

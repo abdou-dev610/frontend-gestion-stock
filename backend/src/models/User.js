@@ -7,6 +7,7 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true, minlength: 6 },
   role: { type: String, enum: ["admin", "seller"], default: "seller" },
   isActive: { type: Boolean, default: true },
+  lastLogout: { type: Date, default: null },
 }, { timestamps: true });
 
 userSchema.pre("save", async function (next) {

@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Building2, Save, CheckCircle, Loader2 } from "lucide-react";
-import { Card, PageHeader, Button } from "@/components/common";
+import { Building2, Save, CheckCircle, Loader2, AlertTriangle } from "lucide-react";
+import { Card, PageHeader, Button, Field } from "@/components/common";
 import { settingsService } from "@/services/settingsService";
 
 export const Route = createFileRoute("/_authenticated/settings")({
@@ -28,6 +28,7 @@ function SettingsPage() {
   });
 
   const { data, isLoading } = useQuery({ queryKey: ["settings"], queryFn: () => settingsService.get() });
+  const isComplete: boolean = data?.data?.isComplete ?? true;
 
   useEffect(() => {
     if (data?.data?.data) {
@@ -52,6 +53,13 @@ function SettingsPage() {
   return (
     <div className="space-y-6">
       <PageHeader title="Paramètres" subtitle="Configurez votre application" />
+
+      {!isComplete && !isLoading && (
+        <div className="flex items-start gap-3 px-4 py-3 rounded-lg bg-warning-soft border border-warning/20 text-warning text-sm">
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+          <span>Les informations de votre entreprise sont incomplètes. Remplissez au minimum le nom, le téléphone et l'adresse pour que vos PDFs de factures soient corrects.</span>
+        </div>
+      )}
 
       <Card className="p-6">
         <div className="flex items-center gap-2 mb-1">
@@ -94,8 +102,4 @@ function SettingsPage() {
       </Card>
     </div>
   );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label className="block"><span className="text-xs font-medium mb-1.5 block">{label}</span>{children}</label>;
 }

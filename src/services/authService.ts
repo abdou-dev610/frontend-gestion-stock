@@ -10,9 +10,12 @@ export const authService = {
     return data;
   },
   logout: async () => {
-    try { await api.post("/auth/logout"); } catch (_) {}
-    localStorage.removeItem("stockfact_token");
-    localStorage.removeItem("stockfact_auth");
+    try {
+      await api.post("/auth/logout");
+    } finally {
+      localStorage.removeItem("stockfact_token");
+      localStorage.removeItem("stockfact_auth");
+    }
   },
   getMe: async () => {
     const { data } = await api.get("/auth/me");

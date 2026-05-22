@@ -1,5 +1,6 @@
 import { createFileRoute, Outlet, redirect, Link, useRouter, useLocation } from "@tanstack/react-router";
 import { useState } from "react";
+import { authService } from "@/services/authService";
 import {
   LayoutDashboard, Package, Boxes, Users, FileText, Settings, LogOut,
   Menu, X, Search, Bell, ChevronDown,
@@ -27,9 +28,12 @@ function AdminLayout() {
   const router = useRouter();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const user = authService.getStoredUser();
 
-  const logout = () => {
-    localStorage.removeItem("stockfact_auth");
+  const logout = async () => {
+    setDropdownOpen(false);
+    await authService.logout();
     router.navigate({ to: "/login" });
   };
 
@@ -64,17 +68,39 @@ function AdminLayout() {
               className="w-full pl-9 pr-3 py-2 rounded-lg bg-muted text-sm border border-transparent focus:outline-none focus:bg-background focus:border-input"
             />
           </div>
-          <button className="relative p-2 rounded-lg hover:bg-muted">
+          <button className="p-2 rounded-lg hover:bg-muted">
             <Bell className="w-5 h-5 text-muted-foreground" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
           </button>
-          <div className="hidden sm:flex items-center gap-2 pl-3 border-l border-border">
-            <div className="w-9 h-9 rounded-full bg-accent text-accent-foreground flex items-center justify-center text-sm font-semibold">A</div>
-            <div className="hidden md:block leading-tight">
-              <div className="text-sm font-medium">Admin</div>
-              <div className="text-xs text-muted-foreground">admin@stockfact.sn</div>
-            </div>
-            <ChevronDown className="w-4 h-4 text-muted-foreground hidden md:block" />
+          <div className="relative hidden sm:block">
+            <button onClick={() => setDropdownOpen(d => !d)} className="flex items-center gap-2 pl-3 border-l border-border hover:opacity-80 transition">
+              <div className="w-9 h-9 rounded-full bg-accent text-accent-foreground flex items-center justify-center text-sm font-semibold">
+                {user?.name?.[0]?.toUpperCase() || "U"}
+              </div>
+              <div className="hidden md:block leading-tight">
+                <div className="text-sm font-medium">{user?.name || "Utilisateur"}</div>
+                <div className="text-xs text-muted-foreground">{user?.email || ""}</div>
+              </div>
+              <ChevronDown className="w-4 h-4 text-muted-foreground hidden md:block" />
+            </button>
+            {dropdownOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(false)} />
+                <div className="absolute right-0 top-full mt-2 w-56 bg-card border border-border rounded-xl shadow-lg z-20 py-1">
+                  <div className="px-4 py-3 border-b border-border">
+                    <div className="text-sm font-semibold">{user?.name || "Utilisateur"}</div>
+                    <div className="text-xs text-muted-foreground truncate">{user?.email || ""}</div>
+                    {user?.role && (
+                      <div className="mt-1 text-xs font-medium text-accent">
+                        {user.role === "admin" ? "Administrateur" : "Vendeur"}
+                      </div>
+                    )}
+                  </div>
+                  <button onClick={logout} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-destructive hover:bg-destructive-soft transition">
+                    <LogOut className="w-4 h-4" /> Se déconnecter
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </header>
 

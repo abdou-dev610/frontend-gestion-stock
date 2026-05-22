@@ -2,7 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Eye, Pencil, Trash2, Loader2 } from "lucide-react";
-import { Card, Badge, PageHeader, Button, SearchInput, Modal } from "@/components/common";
+import { Card, Badge, PageHeader, Button, SearchInput, Modal, Field } from "@/components/common";
+import { getApiError } from "@/lib/apiError";
 import { productService } from "@/services/productService";
 import { formatCurrency } from "@/lib/format";
 
@@ -22,6 +23,7 @@ interface Product {
   stockStatus: string;
   status: string;
   description?: string;
+  image?: string;
 }
 
 interface ProductForm {
@@ -33,9 +35,10 @@ interface ProductForm {
   quantity: string;
   alertThreshold: string;
   description: string;
+  image: string;
 }
 
-const emptyForm: ProductForm = { name: "", reference: "", category: "Alimentaire", purchasePrice: "", salePrice: "", quantity: "", alertThreshold: "10", description: "" };
+const emptyForm: ProductForm = { name: "", reference: "", category: "Alimentaire", purchasePrice: "", salePrice: "", quantity: "", alertThreshold: "10", description: "", image: "" };
 
 const stockTone = (s: string): "success" | "warning" | "destructive" =>
   s === "En stock" ? "success" : s === "Stock faible" ? "warning" : "destructive";
@@ -49,25 +52,27 @@ function ProductsPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState<ProductForm>(emptyForm);
   const [formError, setFormError] = useState("");
+  const [page, setPage] = useState(1);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["products", search, category],
-    queryFn: () => productService.list({ search: search || undefined, category: category || undefined }),
+    queryKey: ["products", search, category, page],
+    queryFn: () => productService.list({ search: search || undefined, category: category || undefined, page, limit: 50 }),
   });
 
   const products: Product[] = data?.data?.data || [];
+  const pagination = data?.data?.pagination;
   const categories = Array.from(new Set(products.map(p => p.category)));
 
   const createMutation = useMutation({
     mutationFn: (d: ProductForm) => productService.create({ ...d, purchasePrice: Number(d.purchasePrice), salePrice: Number(d.salePrice), quantity: Number(d.quantity), alertThreshold: Number(d.alertThreshold) }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["products"] }); setOpenAdd(false); setForm(emptyForm); setFormError(""); },
-    onError: (err: unknown) => setFormError((err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Erreur"),
+    onError: (err: unknown) => setFormError(getApiError(err)),
   });
 
   const updateMutation = useMutation({
     mutationFn: (d: ProductForm) => productService.update(editProduct!._id, { ...d, purchasePrice: Number(d.purchasePrice), salePrice: Number(d.salePrice), quantity: Number(d.quantity), alertThreshold: Number(d.alertThreshold) }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["products"] }); setEditProduct(null); setForm(emptyForm); setFormError(""); },
-    onError: (err: unknown) => setFormError((err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Erreur"),
+    onError: (err: unknown) => setFormError(getApiError(err)),
   });
 
   const deleteMutation = useMutation({
@@ -77,7 +82,7 @@ function ProductsPage() {
 
   const openEdit = (p: Product) => {
     setEditProduct(p);
-    setForm({ name: p.name, reference: p.reference, category: p.category, purchasePrice: String(p.purchasePrice), salePrice: String(p.salePrice), quantity: String(p.quantity), alertThreshold: String(p.alertThreshold), description: p.description || "" });
+    setForm({ name: p.name, reference: p.reference, category: p.category, purchasePrice: String(p.purchasePrice), salePrice: String(p.salePrice), quantity: String(p.quantity), alertThreshold: String(p.alertThreshold), description: p.description || "", image: p.image || "" });
     setFormError("");
   };
 
@@ -93,8 +98,8 @@ function ProductsPage() {
         actions={<Button onClick={handleAdd}><Plus className="w-4 h-4" />Ajouter un produit</Button>} />
 
       <Card className="p-4 flex flex-col sm:flex-row gap-3">
-        <SearchInput placeholder="Rechercher un produit..." value={search} onChange={setSearch} />
-        <select value={category} onChange={(e) => setCategory(e.target.value)}
+        <SearchInput placeholder="Rechercher un produit..." value={search} onChange={(v) => { setSearch(v); setPage(1); }} />
+        <select value={category} onChange={(e) => { setCategory(e.target.value); setPage(1); }}
           className="px-3 py-2 rounded-lg border border-input bg-card text-sm focus:outline-none focus:ring-2 focus:ring-ring/40">
           <option value="">Toutes catégories</option>
           {categories.map(c => <option key={c} value={c}>{c}</option>)}
@@ -145,6 +150,17 @@ function ProductsPage() {
         )}
       </Card>
 
+      {pagination && pagination.total > 50 && (
+        <div className="flex items-center justify-between text-sm text-muted-foreground px-1">
+          <span>{pagination.total} produit{pagination.total > 1 ? "s" : ""}</span>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setPage(p => p - 1)} disabled={page <= 1}>← Précédent</Button>
+            <span className="text-xs">Page {page} / {Math.ceil(pagination.total / 50)}</span>
+            <Button variant="outline" size="sm" onClick={() => setPage(p => p + 1)} disabled={page >= Math.ceil(pagination.total / 50)}>Suivant →</Button>
+          </div>
+        </div>
+      )}
+
       {/* Modal Ajouter/Modifier */}
       <Modal open={openAdd || !!editProduct} onClose={() => { setOpenAdd(false); setEditProduct(null); setFormError(""); }}
         title={editProduct ? "Modifier le produit" : "Ajouter un produit"} size="lg"
@@ -161,6 +177,7 @@ function ProductsPage() {
           <Field label="Prix de vente (FCFA)"><input type="number" className={inputCls} value={form.salePrice} onChange={e => setForm({ ...form, salePrice: e.target.value })} /></Field>
           <Field label="Seuil d'alerte"><input type="number" className={inputCls} value={form.alertThreshold} onChange={e => setForm({ ...form, alertThreshold: e.target.value })} /></Field>
           <div className="sm:col-span-2"><Field label="Description"><textarea rows={2} className={inputCls} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></Field></div>
+          <div className="sm:col-span-2"><Field label="Image (URL)"><input type="url" className={inputCls} value={form.image} onChange={e => setForm({ ...form, image: e.target.value })} placeholder="https://..." /></Field></div>
         </div>
       </Modal>
 
@@ -174,6 +191,3 @@ function ProductsPage() {
 }
 
 const inputCls = "w-full px-3 py-2 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring/40";
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label className="block"><span className="text-xs font-medium text-foreground mb-1.5 block">{label}</span>{children}</label>;
-}

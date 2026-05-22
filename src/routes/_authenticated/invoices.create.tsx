@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Plus, Trash2, Save } from "lucide-react";
 import { Card, PageHeader, Button } from "@/components/common";
+import { getApiError } from "@/lib/apiError";
 import { customerService } from "@/services/customerService";
 import { productService } from "@/services/productService";
 import { invoiceService } from "@/services/invoiceService";
@@ -24,8 +25,8 @@ function CreateInvoicePage() {
   const [notes, setNotes] = useState("");
   const [saveError, setSaveError] = useState("");
 
-  const { data: customersData } = useQuery({ queryKey: ["customers"], queryFn: () => customerService.list() });
-  const { data: productsData } = useQuery({ queryKey: ["products"], queryFn: () => productService.list() });
+  const { data: customersData } = useQuery({ queryKey: ["customers", { limit: 500 }], queryFn: () => customerService.list({ limit: 500 }) });
+  const { data: productsData } = useQuery({ queryKey: ["products", { limit: 500 }], queryFn: () => productService.list({ limit: 500 }) });
 
   const customers = customersData?.data?.data || [];
   const products = productsData?.data?.data || [];
@@ -43,20 +44,28 @@ function CreateInvoicePage() {
   const total = subtotal - discount;
   const remaining = total - paid;
 
+  const validLines = lines.filter(l => l.productId);
+  const hasDuplicateProducts = validLines.length !== new Set(validLines.map(l => l.productId)).size;
+  const hasZeroPriceLine = validLines.some(l => l.unitPrice <= 0);
+
   const saveMutation = useMutation({
-    mutationFn: () => invoiceService.create({
-      customerId,
-      items: lines.filter(l => l.productId).map(l => ({ productId: l.productId, quantity: l.quantity, unitPrice: l.unitPrice })),
-      discount,
-      amountPaid: paid,
-      paymentMethod: method,
-      notes,
-    }),
+    mutationFn: () => {
+      if (hasDuplicateProducts) throw new Error("Plusieurs lignes utilisent le même produit — fusionnez-les");
+      if (hasZeroPriceLine) throw new Error("Tous les articles doivent avoir un prix unitaire supérieur à 0");
+      return invoiceService.create({
+        customerId,
+        items: validLines.map(l => ({ productId: l.productId, quantity: l.quantity, unitPrice: l.unitPrice })),
+        discount,
+        amountPaid: paid,
+        paymentMethod: method,
+        notes,
+      });
+    },
     onSuccess: (res) => {
       const id = res.data?.data?._id;
       navigate({ to: id ? `/invoices/${id}` : "/invoices" });
     },
-    onError: (err: unknown) => setSaveError((err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Erreur lors de la création"),
+    onError: (err: unknown) => setSaveError(getApiError(err, "Erreur lors de la création")),
   });
 
   const inputCls = "w-full px-3 py-2 rounded-lg border border-input bg-card text-sm focus:outline-none focus:ring-2 focus:ring-ring/40";
@@ -166,7 +175,9 @@ function CreateInvoicePage() {
             <Row label="Reste à payer" value={formatCurrency(remaining)} highlight={remaining > 0 ? "destructive" : "success"} />
           </Card>
 
-          <Button className="w-full" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || !customerId || lines.every(l => !l.productId)}>
+          {hasDuplicateProducts && <p className="text-xs text-destructive px-1">⚠ Produit en double — fusionnez les lignes identiques</p>}
+          {hasZeroPriceLine && <p className="text-xs text-destructive px-1">⚠ Un ou plusieurs articles ont un prix unitaire à 0</p>}
+          <Button className="w-full" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || !customerId || validLines.length === 0 || hasDuplicateProducts || hasZeroPriceLine}>
             <Save className="w-4 h-4" />{saveMutation.isPending ? "Enregistrement..." : "Enregistrer la facture"}
           </Button>
         </div>

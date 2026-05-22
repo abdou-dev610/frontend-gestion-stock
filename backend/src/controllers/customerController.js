@@ -2,13 +2,20 @@ import Customer from "../models/Customer.js";
 import Invoice from "../models/Invoice.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
+const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 export const getCustomers = asyncHandler(async (req, res) => {
-  const { search } = req.query;
+  const { search, page = "1", limit = "50" } = req.query;
   const filter = search
-    ? { $or: [{ fullName: { $regex: search, $options: "i" } }, { phone: { $regex: search, $options: "i" } }] }
+    ? (() => { const safe = escapeRegex(search.slice(0, 100)); return { $or: [{ fullName: { $regex: safe, $options: "i" } }, { phone: { $regex: safe, $options: "i" } }] }; })()
     : {};
-  const customers = await Customer.find(filter).sort({ createdAt: -1 });
-  res.json({ success: true, data: customers });
+  const skip = (Math.max(1, parseInt(page)) - 1) * Math.min(100, parseInt(limit));
+  const take = Math.min(100, parseInt(limit));
+  const [customers, total] = await Promise.all([
+    Customer.find(filter).sort({ createdAt: -1 }).skip(skip).limit(take),
+    Customer.countDocuments(filter),
+  ]);
+  res.json({ success: true, data: customers, pagination: { total, page: parseInt(page), limit: take } });
 });
 
 export const getCustomer = asyncHandler(async (req, res) => {
@@ -27,19 +34,36 @@ export const createCustomer = asyncHandler(async (req, res) => {
 export const updateCustomer = asyncHandler(async (req, res) => {
   const customer = await Customer.findById(req.params.id);
   if (!customer) { res.status(404); throw new Error("Client non trouvé"); }
-  Object.assign(customer, req.body);
+  const { fullName, phone, email, address, type, notes } = req.body;
+  if (fullName !== undefined) customer.fullName = fullName;
+  if (phone !== undefined) customer.phone = phone;
+  if (email !== undefined) customer.email = email;
+  if (address !== undefined) customer.address = address;
+  if (type !== undefined) customer.type = type;
+  if (notes !== undefined) customer.notes = notes;
   await customer.save();
   res.json({ success: true, data: customer });
 });
 
 export const deleteCustomer = asyncHandler(async (req, res) => {
-  const customer = await Customer.findByIdAndDelete(req.params.id);
+  const customer = await Customer.findById(req.params.id);
   if (!customer) { res.status(404); throw new Error("Client non trouvé"); }
+  const invoiceCount = await Invoice.countDocuments({ customer: req.params.id });
+  if (invoiceCount > 0) {
+    res.status(409);
+    throw new Error(`Impossible de supprimer ce client : ${invoiceCount} facture(s) lui sont associées`);
+  }
+  await customer.deleteOne();
   res.json({ success: true, message: "Client supprimé" });
 });
 
 export const getCustomerInvoices = asyncHandler(async (req, res) => {
-  const invoices = await Invoice.find({ customer: req.params.id })
-    .sort({ createdAt: -1 });
-  res.json({ success: true, data: invoices });
+  const { page = "1", limit = "50" } = req.query;
+  const skip = (Math.max(1, parseInt(page)) - 1) * Math.min(100, parseInt(limit));
+  const take = Math.min(100, parseInt(limit));
+  const [invoices, total] = await Promise.all([
+    Invoice.find({ customer: req.params.id }).sort({ createdAt: -1 }).skip(skip).limit(take),
+    Invoice.countDocuments({ customer: req.params.id }),
+  ]);
+  res.json({ success: true, data: invoices, pagination: { total, page: parseInt(page), limit: take } });
 });

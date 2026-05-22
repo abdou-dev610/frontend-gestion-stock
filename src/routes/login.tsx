@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { Package, Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { authService } from "@/services/authService";
@@ -9,8 +9,8 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("admin@stockfact.sn");
-  const [password, setPassword] = useState("Admin123456");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -81,9 +81,6 @@ function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-6 p-3 rounded-lg bg-muted/50 text-xs text-muted-foreground">
-            <strong>Démo :</strong> admin@stockfact.sn / Admin123456
-          </div>
         </div>
         <p className="text-center text-xs text-muted-foreground mt-6">© 2026 StockFact Pro — ERP de facturation et gestion de stock</p>
       </div>

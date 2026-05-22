@@ -6,7 +6,9 @@ const customerSchema = new mongoose.Schema({
   email: { type: String, default: "", lowercase: true, trim: true },
   address: { type: String, default: "" },
   type: { type: String, enum: ["particulier", "entreprise", "grossiste"], default: "particulier" },
-  notes: { type: String, default: "" },
+  notes: { type: String, default: "", maxlength: 1000 },
 }, { timestamps: true });
+
+customerSchema.index({ fullName: 1 });
 
 export default mongoose.model("Customer", customerSchema);

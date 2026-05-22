@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, FileDown, Printer, Package, Loader2 } from "lucide-react";
 import { Card, Badge, Button } from "@/components/common";
 import { invoiceService } from "@/services/invoiceService";
+import { settingsService } from "@/services/settingsService";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { useState } from "react";
 
@@ -39,8 +40,10 @@ function InvoiceDetail() {
     queryKey: ["invoice", id],
     queryFn: () => invoiceService.get(id),
   });
+  const { data: settingsData } = useQuery({ queryKey: ["settings"], queryFn: () => settingsService.get() });
 
   const invoice: InvoiceData | null = data?.data?.data || null;
+  const settings = settingsData?.data?.data;
 
   const handleDownload = async () => {
     if (!invoice) return;
@@ -62,7 +65,14 @@ function InvoiceDetail() {
     </div>
   );
 
-  if (isError || !invoice) return (
+  if (isError) return (
+    <div className="text-center py-16">
+      <p className="text-muted-foreground">Erreur lors du chargement de la facture</p>
+      <Link to="/invoices"><Button variant="ghost" className="mt-4">← Retour</Button></Link>
+    </div>
+  );
+
+  if (!invoice) return (
     <div className="text-center py-16">
       <p className="text-muted-foreground">Facture introuvable</p>
       <Link to="/invoices"><Button variant="ghost" className="mt-4">← Retour</Button></Link>
@@ -88,7 +98,7 @@ function InvoiceDetail() {
             <div className="flex items-center gap-2 mb-3">
               <div className="w-10 h-10 rounded-lg bg-accent text-accent-foreground flex items-center justify-center"><Package className="w-5 h-5" /></div>
               <div>
-                <div className="font-bold text-lg">StockFact <span className="text-accent">Pro</span></div>
+                <div className="font-bold text-lg">{settings?.companyName || "StockFact Pro"}</div>
                 <div className="text-xs text-muted-foreground">ERP de facturation</div>
               </div>
             </div>
@@ -149,7 +159,7 @@ function InvoiceDetail() {
         )}
 
         <div className="mt-10 pt-6 border-t border-border text-center text-sm text-muted-foreground">
-          Merci pour votre confiance !
+          {settings?.invoiceFooter || "Merci pour votre confiance !"}
         </div>
       </Card>
     </div>

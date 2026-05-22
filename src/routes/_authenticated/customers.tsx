@@ -2,7 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Phone, Mail, MapPin, X, Pencil, Trash2, Loader2 } from "lucide-react";
-import { Card, Badge, PageHeader, Button, SearchInput, Modal } from "@/components/common";
+import { Card, Badge, PageHeader, Button, SearchInput, Modal, Field } from "@/components/common";
+import { getApiError } from "@/lib/apiError";
 import { customerService } from "@/services/customerService";
 import { formatCurrency, formatDate } from "@/lib/format";
 
@@ -44,10 +45,11 @@ function CustomersPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState<CustomerForm>(emptyForm);
   const [formError, setFormError] = useState("");
+  const [page, setPage] = useState(1);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["customers", search],
-    queryFn: () => customerService.list({ search: search || undefined }),
+    queryKey: ["customers", search, page],
+    queryFn: () => customerService.list({ search: search || undefined, page, limit: 50 }),
   });
 
   const { data: customerInvoices } = useQuery({
@@ -57,18 +59,19 @@ function CustomersPage() {
   });
 
   const customers: Customer[] = data?.data?.data || [];
+  const pagination = data?.data?.pagination;
   const invoices = customerInvoices?.data?.data || [];
 
   const createMutation = useMutation({
     mutationFn: (d: CustomerForm) => customerService.create(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["customers"] }); setOpenAdd(false); setForm(emptyForm); setFormError(""); },
-    onError: (err: unknown) => setFormError((err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Erreur"),
+    onError: (err: unknown) => setFormError(getApiError(err)),
   });
 
   const updateMutation = useMutation({
     mutationFn: (d: CustomerForm) => customerService.update(editCustomer!._id, d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["customers"] }); setEditCustomer(null); setForm(emptyForm); setFormError(""); },
-    onError: (err: unknown) => setFormError((err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Erreur"),
+    onError: (err: unknown) => setFormError(getApiError(err)),
   });
 
   const deleteMutation = useMutation({
@@ -96,7 +99,7 @@ function CustomersPage() {
       <PageHeader title="Gestion des clients" subtitle="Votre base clients en un coup d'œil"
         actions={<Button onClick={() => { setForm(emptyForm); setFormError(""); setOpenAdd(true); }}><Plus className="w-4 h-4" />Ajouter un client</Button>} />
 
-      <Card className="p-4"><SearchInput placeholder="Rechercher un client..." value={search} onChange={setSearch} /></Card>
+      <Card className="p-4"><SearchInput placeholder="Rechercher un client..." value={search} onChange={(v) => { setSearch(v); setPage(1); }} /></Card>
 
       <Card className="overflow-hidden">
         {isLoading ? (
@@ -140,6 +143,17 @@ function CustomersPage() {
           </div>
         )}
       </Card>
+
+      {pagination && pagination.total > 50 && (
+        <div className="flex items-center justify-between text-sm text-muted-foreground px-1">
+          <span>{pagination.total} client{pagination.total > 1 ? "s" : ""}</span>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setPage(p => p - 1)} disabled={page <= 1}>← Précédent</Button>
+            <span className="text-xs">Page {page} / {Math.ceil(pagination.total / 50)}</span>
+            <Button variant="outline" size="sm" onClick={() => setPage(p => p + 1)} disabled={page >= Math.ceil(pagination.total / 50)}>Suivant →</Button>
+          </div>
+        </div>
+      )}
 
       {/* Drawer détail */}
       {selected && (
@@ -216,8 +230,4 @@ function CustomersPage() {
       </Modal>
     </div>
   );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label className="block"><span className="text-xs font-medium mb-1.5 block">{label}</span>{children}</label>;
 }

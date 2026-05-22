@@ -4,7 +4,8 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 export const getSettings = asyncHandler(async (req, res) => {
   let settings = await Settings.findOne();
   if (!settings) settings = await Settings.create({});
-  res.json({ success: true, data: settings });
+  const isComplete = !!(settings.companyName && settings.phone && settings.address);
+  res.json({ success: true, data: settings, isComplete });
 });
 
 export const updateSettings = asyncHandler(async (req, res) => {

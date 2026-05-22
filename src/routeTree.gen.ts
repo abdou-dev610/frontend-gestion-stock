@@ -18,6 +18,7 @@ import { Route as AuthenticatedProductsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedInvoicesRouteImport } from './routes/_authenticated/invoices'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedCustomersRouteImport } from './routes/_authenticated/customers'
+import { Route as AuthenticatedInvoicesIndexRouteImport } from './routes/_authenticated/invoices.index'
 import { Route as AuthenticatedInvoicesCreateRouteImport } from './routes/_authenticated/invoices.create'
 import { Route as AuthenticatedInvoicesIdRouteImport } from './routes/_authenticated/invoices.$id'
 
@@ -65,6 +66,12 @@ const AuthenticatedCustomersRoute = AuthenticatedCustomersRouteImport.update({
   path: '/customers',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedInvoicesIndexRoute =
+  AuthenticatedInvoicesIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedInvoicesRoute,
+  } as any)
 const AuthenticatedInvoicesCreateRoute =
   AuthenticatedInvoicesCreateRouteImport.update({
     id: '/create',
@@ -88,18 +95,19 @@ export interface FileRoutesByFullPath {
   '/stock': typeof AuthenticatedStockRoute
   '/invoices/$id': typeof AuthenticatedInvoicesIdRoute
   '/invoices/create': typeof AuthenticatedInvoicesCreateRoute
+  '/invoices/': typeof AuthenticatedInvoicesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/customers': typeof AuthenticatedCustomersRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/invoices': typeof AuthenticatedInvoicesRouteWithChildren
   '/products': typeof AuthenticatedProductsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/stock': typeof AuthenticatedStockRoute
   '/invoices/$id': typeof AuthenticatedInvoicesIdRoute
   '/invoices/create': typeof AuthenticatedInvoicesCreateRoute
+  '/invoices': typeof AuthenticatedInvoicesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -114,6 +122,7 @@ export interface FileRoutesById {
   '/_authenticated/stock': typeof AuthenticatedStockRoute
   '/_authenticated/invoices/$id': typeof AuthenticatedInvoicesIdRoute
   '/_authenticated/invoices/create': typeof AuthenticatedInvoicesCreateRoute
+  '/_authenticated/invoices/': typeof AuthenticatedInvoicesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -128,18 +137,19 @@ export interface FileRouteTypes {
     | '/stock'
     | '/invoices/$id'
     | '/invoices/create'
+    | '/invoices/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
     | '/customers'
     | '/dashboard'
-    | '/invoices'
     | '/products'
     | '/settings'
     | '/stock'
     | '/invoices/$id'
     | '/invoices/create'
+    | '/invoices'
   id:
     | '__root__'
     | '/'
@@ -153,6 +163,7 @@ export interface FileRouteTypes {
     | '/_authenticated/stock'
     | '/_authenticated/invoices/$id'
     | '/_authenticated/invoices/create'
+    | '/_authenticated/invoices/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -226,6 +237,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCustomersRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/invoices/': {
+      id: '/_authenticated/invoices/'
+      path: '/'
+      fullPath: '/invoices/'
+      preLoaderRoute: typeof AuthenticatedInvoicesIndexRouteImport
+      parentRoute: typeof AuthenticatedInvoicesRoute
+    }
     '/_authenticated/invoices/create': {
       id: '/_authenticated/invoices/create'
       path: '/create'
@@ -246,11 +264,13 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedInvoicesRouteChildren {
   AuthenticatedInvoicesIdRoute: typeof AuthenticatedInvoicesIdRoute
   AuthenticatedInvoicesCreateRoute: typeof AuthenticatedInvoicesCreateRoute
+  AuthenticatedInvoicesIndexRoute: typeof AuthenticatedInvoicesIndexRoute
 }
 
 const AuthenticatedInvoicesRouteChildren: AuthenticatedInvoicesRouteChildren = {
   AuthenticatedInvoicesIdRoute: AuthenticatedInvoicesIdRoute,
   AuthenticatedInvoicesCreateRoute: AuthenticatedInvoicesCreateRoute,
+  AuthenticatedInvoicesIndexRoute: AuthenticatedInvoicesIndexRoute,
 }
 
 const AuthenticatedInvoicesRouteWithChildren =

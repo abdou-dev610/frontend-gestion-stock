@@ -11,18 +11,23 @@ export const protect = asyncHandler(async (req, res, next) => {
     res.status(401);
     throw new Error("Non autorisé - token manquant");
   }
+  let decoded;
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = await User.findById(decoded.id).select("-password");
-    if (!req.user || !req.user.isActive) {
-      res.status(401);
-      throw new Error("Non autorisé - utilisateur inactif");
-    }
-    next();
-  } catch (err) {
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
+  } catch {
     res.status(401);
     throw new Error("Non autorisé - token invalide");
   }
+  req.user = await User.findById(decoded.id).select("-password");
+  if (!req.user || !req.user.isActive) {
+    res.status(401);
+    throw new Error("Non autorisé - utilisateur inactif");
+  }
+  if (req.user.lastLogout && decoded.iat * 1000 < req.user.lastLogout.getTime()) {
+    res.status(401);
+    throw new Error("Non autorisé - session expirée, veuillez vous reconnecter");
+  }
+  next();
 });
 
 export const adminOnly = (req, res, next) => {

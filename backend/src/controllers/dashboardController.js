@@ -4,14 +4,14 @@ import Invoice from "../models/Invoice.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
 export const getStats = asyncHandler(async (req, res) => {
-  const [totalProducts, totalCustomers, totalInvoices, invoices, lowStockProducts] = await Promise.all([
+  const [totalProducts, totalCustomers, totalInvoices, revenueAgg, lowStockProducts] = await Promise.all([
     Product.countDocuments({ status: "active" }),
     Customer.countDocuments(),
     Invoice.countDocuments(),
-    Invoice.find({ paymentStatus: "paid" }, { totalAmount: 1 }),
+    Invoice.aggregate([{ $match: { paymentStatus: "paid" } }, { $group: { _id: null, total: { $sum: "$totalAmount" } } }]),
     Product.countDocuments({ $expr: { $lte: ["$quantity", "$alertThreshold"] }, status: "active" }),
   ]);
-  const revenue = invoices.reduce((s, i) => s + i.totalAmount, 0);
+  const revenue = revenueAgg[0]?.total || 0;
   res.json({ success: true, data: { totalProducts, totalCustomers, totalInvoices, revenue, lowStock: lowStockProducts } });
 });
 
@@ -32,10 +32,8 @@ export const getLowStock = asyncHandler(async (req, res) => {
 });
 
 export const getSalesChart = asyncHandler(async (req, res) => {
-  const sixMonthsAgo = new Date();
-  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
-  sixMonthsAgo.setDate(1);
-  sixMonthsAgo.setHours(0, 0, 0, 0);
+  const now = new Date();
+  const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1, 0, 0, 0, 0);
 
   const data = await Invoice.aggregate([
     { $match: { createdAt: { $gte: sixMonthsAgo }, paymentStatus: { $in: ["paid", "partial"] } } },
@@ -46,11 +44,19 @@ export const getSalesChart = asyncHandler(async (req, res) => {
     { $sort: { "_id.year": 1, "_id.month": 1 } },
   ]);
 
-  const months = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
-  const result = data.map(d => ({
-    month: months[d._id.month - 1],
-    value: d.value,
-  }));
+  const monthLabels = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
+  const indexed = new Map(data.map(d => [`${d._id.year}-${d._id.month}`, d.value]));
+
+  const result = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${d.getMonth() + 1}`;
+    result.push({
+      month: monthLabels[d.getMonth()],
+      year: d.getFullYear(),
+      value: indexed.get(key) ?? 0,
+    });
+  }
 
   res.json({ success: true, data: result });
 });

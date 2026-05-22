@@ -31,10 +31,12 @@ async function seed() {
   console.log("🗑️  Base de données nettoyée");
 
   // Admin
+  const adminEmail = process.env.SEED_ADMIN_EMAIL || "admin@stockfact.sn";
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD || "Admin123456";
   const admin = await User.create({
     name: "Admin",
-    email: "admin@stockfact.sn",
-    password: "Admin123456",
+    email: adminEmail,
+    password: adminPassword,
     role: "admin",
   });
   console.log("👤 Admin créé:", admin.email);
@@ -128,8 +130,8 @@ async function seed() {
   console.log(`🧾 3 factures exemples créées`);
   console.log("\n✅ Seed terminé avec succès !\n");
   console.log("🔑 Identifiants admin:");
-  console.log("   Email    : admin@stockfact.sn");
-  console.log("   Password : Admin123456\n");
+  console.log(`   Email    : ${adminEmail}`);
+  console.log(`   Password : ${adminPassword}\n`);
 
   process.exit(0);
 }
